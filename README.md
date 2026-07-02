@@ -59,8 +59,4 @@ Mini_Projet_security/
 - Replace images in the `avatars/` folder with your own PNGs.
 - Add more roles by editing the `users` dictionary in `app.py`.
 
-## License
-MIT License – feel free to fork and modify.
 
----
-*Generated with ❤️ by the Antigravity coding assistant.*
