@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Messenger - Multi-User E2EE Simulation</title>
+    <meta name="description" content="Simulation de messagerie sécurisée avec AES-256, RSA-2048 et SHA-256.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+<body class="auth-required">
+    <!-- Animated Ambient Background Orbs -->
+    <div class="ambient-bg">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+        <div class="grid-overlay"></div>
+    </div>
+
+    <!-- Authentication Overlay -->
+    <div id="authOverlay" class="auth-overlay">
+        <!-- Floating cipher particles -->
+        <div class="auth-particles">
+            <span class="particle">🔐</span>
+            <span class="particle">01</span>
+            <span class="particle">⚿</span>
+            <span class="particle">10</span>
+            <span class="particle">🛡</span>
+            <span class="particle">AES</span>
+            <span class="particle">RSA</span>
+            <span class="particle">SHA</span>
+            <span class="particle">🔑</span>
+            <span class="particle">11</span>
+            <span class="particle">⛓</span>
+            <span class="particle">00</span>
+        </div>
+        <div class="auth-card">
+            <div id="loginForm" class="auth-section">
+                <h2>Content de vous revoir</h2>
+                <p>Connectez-vous à votre espace sécurisé</p>
+                <div class="auth-form">
+                    <div class="form-group">
+                        <label>Nom d'utilisateur</label>
+                        <input type="text" id="loginUser" class="auth-input" placeholder="ex: Alice">
+                    </div>
+                    <div class="form-group">
+                        <label>Mot de passe</label>
+                        <input type="password" id="loginPass" class="auth-input" placeholder="••••••••">
+                    </div>
+                    <button id="btnLogin" class="btn-auth">Initialiser Session</button>
+                    <div class="auth-switch">
+                        Nouveau ? <a href="#" id="showRegister">Créer un compte</a>
+                    </div>
+                </div>
+            </div>
+
+            <div id="registerForm" class="auth-section hidden">
+                <h2>Rejoindre le Réseau</h2>
+                <p>Configurez votre identité cryptographique</p>
+                <div class="auth-form">
+                    <div class="form-group">
+                        <label>Nom d'utilisateur</label>
+                        <input type="text" id="regUser" class="auth-input" placeholder="ex: Dave">
+                    </div>
+                    <div class="form-group">
+                        <label>Rôle</label>
+                        <select id="regRole" class="auth-input select-role-custom">
+                            <option value="user" selected>Utilisateur</option>
+                            <option value="admin">Administrateur</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Mot de passe</label>
+                        <input type="password" id="regPass" class="auth-input" placeholder="••••••••">
+                    </div>
+                    <button id="btnRegister" class="btn-auth">Générer Clés & S'inscrire</button>
+                    <div class="auth-switch">
+                        Déjà inscrit ? <a href="#" id="showLogin">Se connecter</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="appBody" class="app-container hidden">
+        <!-- Main Header -->
+        <header class="main-header">
+            <div class="header-left">
+                <div class="logo-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                </div>
+                <div class="logo-text">
+                    <h1>Secure Messenger</h1>
+                    <span class="crypto-specs">AES-256-GCM • RSA-2048 • SHA-256</span>
+                </div>
+            </div>
+            
+            <div class="header-actions">
+                <div id="sessionHeader" class="session-info">
+                    <div class="user-badge">
+                        <div class="avatar-small" id="currentUserAvatar">?</div>
+                        <div class="user-badge-info">
+                            <span id="currentUserName">Utilisateur</span>
+                            <span id="currentUserRole" class="role-badge">Utilisateur</span>
+                        </div>
+                    </div>
+                    <button id="btnLogout" class="btn-logout">Déconnexion</button>
+                </div>
+                <button id="btnAttack" class="btn btn-outline-danger">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    Mode Attaque
+                </button>
+            </div>
+        </header>
+
+        <main class="dashboard-layout">
+            <!-- Left Sidebar: Network Hub -->
+            <aside class="network-sidebar">
+                <!-- User RSA Keys Registry -->
+                <div class="crypto-card">
+                    <div class="card-header">
+                        <h3>Annuaire des Clés Publiques</h3>
+                    </div>
+                    <div id="pubKeyList" class="key-list">
+                        <!-- Populated dynamically: user name + public key fingerprint -->
+                    </div>
+                </div>
+
+                <!-- Network Channel Monitor -->
+                <div class="crypto-card">
+                    <div class="card-header">
+                        <h3>Canal Réseau (Monitor)</h3>
+                        <span id="networkStatus" class="status-badge" style="font-size: 0.6rem; background: rgba(34, 197, 94, 0.2); color: var(--accent-green); padding: 2px 8px; border-radius: 4px;">EN LIGNE</span>
+                    </div>
+                    <div id="networkData" class="network-details">
+                        <div class="detail-row">
+                            <span class="label">TRANSIT</span>
+                            <div id="flowDirection" class="code-value" style="color: var(--accent-blue); font-weight: 700;">Aucun trafic</div>
+                        </div>
+                        <div class="detail-row">
+                            <span class="label">CIPHERTEXT (AES-GCM)</span>
+                            <div id="cipherText" class="code-value">...</div>
+                        </div>
+                        <div class="detail-row">
+                            <span class="label">SESSION KEY (RSA ENCRYPTED)</span>
+                            <div id="encAesKey" class="code-value">...</div>
+                        </div>
+                        <div class="detail-row">
+                            <span class="label">HASH (SHA-256)</span>
+                            <div id="msgHash" class="code-value">...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Crypto Operations Logs -->
+                <div class="crypto-card journal-card" style="flex: 1; display: flex; flex-direction: column;">
+                    <div class="card-header">
+                        <h3>Journal Cryptographique</h3>
+                        <span id="opCount" style="font-size: 0.7rem; color: var(--text-secondary);">0 ops</span>
+                    </div>
+                    <div id="cryptoLogs" class="journal-logs">
+                        <!-- Logs populated here -->
+                    </div>
+                    
+                    <!-- Integrity Alert (Conditional) -->
+                    <div id="integrityResult" class="integrity-panel hidden">
+                        <div id="integrityStatus" class="integrity-msg"></div>
+                        <div style="font-size: 0.65rem; opacity: 0.8; font-family: 'JetBrains Mono'; word-break: break-all;">
+                            Orig: <span id="hashOrig"></span><br>
+                            Calc: <span id="hashCalc"></span>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Right Content: Messenger UI -->
+            <section class="user-interaction-area">
+                <div class="messenger-layout" id="messengerLayout">
+                    <!-- Contacts Sidebar -->
+                    <div class="contacts-sidebar">
+                        <div class="contacts-header">
+                            <h2>Messages Directs</h2>
+                        </div>
+                        <div class="contacts-list" id="contactsList">
+                            <!-- Populated dynamically via JS -->
+                        </div>
+                    </div>
+                    
+                    <!-- Active Chat Window -->
+                    <div class="active-chat-area hidden" id="activeChatArea">
+                        <div class="chat-header" style="display: flex; align-items: center; gap: 12px;">
+                            <div class="avatar" id="activeChatAvatar">?</div>
+                            <div class="panel-info" style="display: flex; flex-direction: column; align-items: flex-start; gap: 4px;">
+                            <h2 class="user-name" id="activeChatName">Nom du Contact</h2>
+                                <div id="activeChatRole" class="role-badge">Membre</div>
+                                <span class="status-text">Chiffrement de bout en bout actif</span>
+                            </div>
+                        </div>
+                        <div class="chat-history messenger-history" id="chatHistory">
+                            <!-- Mesages -->
+                        </div>
+                        <div class="input-area messenger-input">
+                            <input type="text" id="chatInput" placeholder="Écrire un message...">
+                            <button class="btn-send" id="btnSend">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Empty State (No contact selected) -->
+                    <div class="empty-state" id="emptyState">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:64px;height:64px;margin-bottom:1rem;color:var(--text-secondary);"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                        <h2>Vos Messages</h2>
+                        <p>Sélectionnez un contact pour démarrer une conversation privée.</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="script.js?v=2"></script>
+</body>
+</html>
