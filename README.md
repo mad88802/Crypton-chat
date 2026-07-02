@@ -1,4 +1,4 @@
-# Secure Messenger – Animated UI Demo
+# Secure Messenger 
 
 ![Demo Animation](https://raw.githubusercontent.com/yourusername/secure-messenger/main/assets/demo.gif)
 
